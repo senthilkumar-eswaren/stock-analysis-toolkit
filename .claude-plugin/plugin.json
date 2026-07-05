@@ -1,7 +1,7 @@
 {
   "name": "stock-analysis-toolkit",
   "description": "Download historical stock data (yfinance) for any ticker and date range, run descriptive analysis (trend, volatility, moving averages, yearly/monthly performance, seasonality), and backtest a 21/50 SMA crossover strategy with full trade log, stats, and dashboard.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "seswaran"
   },

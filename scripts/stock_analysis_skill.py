@@ -53,7 +53,14 @@ MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 # ----------------------------------------------------------------------
 def parse_args():
     p = argparse.ArgumentParser(description="Full stock analysis + SMA crossover backtest skill.")
-    p.add_argument("--symbol", required=True, help="Ticker symbol, e.g. MSFT, AAPL, TSLA")
+    p.add_argument("--symbol", required=True,
+                    help="Ticker symbol. US: MSFT, AAPL, TSLA. NSE: RELIANCE, TCS, INFY. "
+                         "BSE: 500325 or RELIANCE. Exchange suffix (.NS/.BO) is auto-added "
+                         "if --exchange is NSE/BSE and not already present.")
+    p.add_argument("--exchange", default="AUTO", choices=["AUTO", "US", "NSE", "BSE"],
+                    help="Exchange: US (NYSE/NASDAQ, default), NSE, or BSE (India). "
+                         "AUTO detects from symbol suffix (.NS/.BO) or a raw NSE-listed name; "
+                         "falls back to US. Determines currency ($ for US, Rs for NSE/BSE).")
     p.add_argument("--start", required=True, type=int, help="Start year, e.g. 2009")
     p.add_argument("--end", required=True, type=int, help="End year (exclusive upper bound), e.g. 2025")
     p.add_argument("--recent-years", type=int, default=8, help="Recent-years window for stats/heatmap (default 8)")
@@ -63,6 +70,35 @@ def parse_args():
     p.add_argument("--sma-slow", type=int, default=50, help="Slow SMA window (default 50)")
     p.add_argument("--outdir", default=None, help="Output directory (default auto-generated)")
     return p.parse_args()
+
+
+# ----------------------------------------------------------------------
+# Exchange / currency resolution
+# ----------------------------------------------------------------------
+# yfinance suffix convention: NSE tickers end in ".NS", BSE tickers end in ".BO".
+# Currency is USD for US-listed symbols and INR for NSE/BSE-listed symbols.
+CURRENCY_BY_EXCHANGE = {"US": "$", "NSE": "Rs", "BSE": "Rs"}
+
+
+def resolve_symbol_and_currency(symbol, exchange):
+    """Normalize the ticker with the right yfinance suffix and pick the currency symbol."""
+    raw = symbol.upper().strip()
+
+    if exchange == "AUTO":
+        if raw.endswith(".NS"):
+            exchange = "NSE"
+        elif raw.endswith(".BO"):
+            exchange = "BSE"
+        else:
+            exchange = "US"
+
+    if exchange == "NSE" and not raw.endswith(".NS"):
+        raw = f"{raw}.NS"
+    elif exchange == "BSE" and not raw.endswith(".BO"):
+        raw = f"{raw}.BO"
+
+    currency = CURRENCY_BY_EXCHANGE[exchange]
+    return raw, exchange, currency
 
 
 # ----------------------------------------------------------------------
@@ -76,13 +112,18 @@ def download_data(symbol, start_year, end_year, outdir):
     print(f"[1/4] Downloading {symbol} data from {start_str} to {end_str} ...")
     data = yf.download(symbol, start=start_str, end=end_str)
     if data.empty:
-        raise ValueError(f"No data returned for symbol '{symbol}'. Check the ticker and date range.")
+        raise ValueError(
+            f"No data returned for symbol '{symbol}'. Check the ticker and date range "
+            f"(NSE symbols need a '.NS' suffix, BSE symbols need '.BO', e.g. RELIANCE.NS)."
+        )
 
     # yfinance MultiIndex columns -> flatten
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
 
-    csv_path = os.path.join(outdir, f"{symbol}_{start_year}_{end_year}.csv")
+    # Sanitize symbol for use in filenames (strip dots from .NS/.BO suffixes)
+    safe_symbol = symbol.replace(".", "_")
+    csv_path = os.path.join(outdir, f"{safe_symbol}_{start_year}_{end_year}.csv")
     data.to_csv(csv_path)
     print(f"      Saved raw data -> {csv_path}")
     return data
@@ -91,8 +132,9 @@ def download_data(symbol, start_year, end_year, outdir):
 # ----------------------------------------------------------------------
 # 2. Dataset overview + descriptive analysis
 # ----------------------------------------------------------------------
-def run_descriptive_analysis(df, symbol, recent_years, outdir):
+def run_descriptive_analysis(df, symbol, recent_years, outdir, currency="$"):
     print(f"[2/4] Running descriptive analysis (trend, volatility, MAs, seasonality)...")
+    safe_symbol = symbol.replace(".", "_")
     df = df.copy()
     df["Daily Return"] = df["Close"].pct_change()
 
@@ -104,6 +146,7 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
     report_lines.append(f"DATASET OVERVIEW - {symbol}")
     report_lines.append(f"Date Range : {df.index.min().date()} to {df.index.max().date()}")
     report_lines.append(f"Total Rows : {len(df)} trading days")
+    report_lines.append(f"Currency   : {currency}")
     report_lines.append(f"Features   : {list(df.columns[:5])} (+ derived Daily Return)\n")
 
     report_lines.append(f"SUMMARY STATISTICS - LAST {recent_years} YEARS")
@@ -114,9 +157,9 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
     plt.figure(figsize=(12, 6))
     plt.plot(df_recent.index, df_recent["Close"], color="steelblue", linewidth=1.2)
     plt.title(f"{symbol} Closing Price Trend (Last {recent_years} Years)")
-    plt.xlabel("Date"); plt.ylabel("Close Price")
+    plt.xlabel("Date"); plt.ylabel(f"Close Price ({currency})")
     plt.grid(alpha=0.3); plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f"{symbol}_trend.png"), dpi=150); plt.close()
+    plt.savefig(os.path.join(outdir, f"{safe_symbol}_trend.png"), dpi=150); plt.close()
 
     # Volatility
     df["Volatility_30d"] = df["Daily Return"].rolling(30).std() * np.sqrt(252)
@@ -130,7 +173,7 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
     plt.plot(df.index, df["Volatility_30d"], color="crimson", linewidth=1)
     plt.title(f"{symbol} 30-Day Rolling Annualized Volatility")
     plt.grid(alpha=0.3); plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f"{symbol}_volatility.png"), dpi=150); plt.close()
+    plt.savefig(os.path.join(outdir, f"{safe_symbol}_volatility.png"), dpi=150); plt.close()
 
     # Moving averages (50/200 for descriptive section)
     df["MA50"] = df["Close"].rolling(50).mean()
@@ -141,7 +184,7 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
     plt.plot(df.index, df["MA200"], label="200-Day MA", color="green")
     plt.title(f"{symbol} Price with 50/200-Day Moving Averages")
     plt.legend(); plt.grid(alpha=0.3); plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f"{symbol}_moving_averages.png"), dpi=150); plt.close()
+    plt.savefig(os.path.join(outdir, f"{safe_symbol}_moving_averages.png"), dpi=150); plt.close()
 
     # Yearly performance
     yearly = df["Close"].resample("YE").agg(["first", "last"])
@@ -155,7 +198,7 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
     plt.bar(yearly.index.year, yearly["Return %"], color=colors)
     plt.title(f"{symbol} Yearly Returns (%)")
     plt.grid(alpha=0.3, axis="y"); plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f"{symbol}_yearly_returns.png"), dpi=150); plt.close()
+    plt.savefig(os.path.join(outdir, f"{safe_symbol}_yearly_returns.png"), dpi=150); plt.close()
 
     # Monthly returns heatmap (recent years)
     monthly_close = df_recent["Close"].resample("ME").last()
@@ -170,7 +213,7 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
                 linewidths=0.5, cbar_kws={"label": "Monthly Return (%)"})
     plt.title(f"{symbol} Monthly % Returns Heatmap (Last {recent_years} Years)")
     plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f"{symbol}_monthly_returns_heatmap.png"), dpi=150); plt.close()
+    plt.savefig(os.path.join(outdir, f"{safe_symbol}_monthly_returns_heatmap.png"), dpi=150); plt.close()
 
     # Seasonality
     df["Month"] = df.index.strftime("%b")
@@ -184,9 +227,9 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
     plt.bar(seasonal_avg.index, seasonal_avg.values, color=colors)
     plt.title(f"{symbol} Average Daily Return by Month")
     plt.grid(alpha=0.3, axis="y"); plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f"{symbol}_seasonality.png"), dpi=150); plt.close()
+    plt.savefig(os.path.join(outdir, f"{safe_symbol}_seasonality.png"), dpi=150); plt.close()
 
-    report_path = os.path.join(outdir, f"{symbol}_analysis_report.txt")
+    report_path = os.path.join(outdir, f"{safe_symbol}_analysis_report.txt")
     with open(report_path, "w") as f:
         f.write("\n".join(str(x) for x in report_lines))
     print(f"      Saved analysis charts + report -> {outdir}/")
@@ -196,9 +239,13 @@ def run_descriptive_analysis(df, symbol, recent_years, outdir):
 # ----------------------------------------------------------------------
 # 3 & 4. SMA crossover backtest + dashboard
 # ----------------------------------------------------------------------
-def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow, outdir):
+def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow, outdir, currency="$"):
     print(f"[3/4] Running {sma_fast}/{sma_slow} SMA crossover backtest "
-          f"(last {recent_years}y, capital Rs {capital:,.0f}, lot size {lot_size})...")
+          f"(last {recent_years}y, capital {currency}{capital:,.0f}, lot size {lot_size})...")
+    safe_symbol = symbol.replace(".", "_")
+    pnl_col = f"P&L ({currency})"
+    cum_col = f"Cumulative P&L ({currency})"
+    equity_col = f"Equity ({currency})"
 
     end_date = df.index.max()
     start_recent = end_date - timedelta(days=recent_years * 365)
@@ -215,7 +262,7 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
     bt.loc[buy_mask, "Signal"] = 1
     bt.loc[sell_mask, "Signal"] = -1
 
-    signals_csv = os.path.join(outdir, f"{symbol}_sma_signals.csv")
+    signals_csv = os.path.join(outdir, f"{safe_symbol}_sma_signals.csv")
     bt.to_csv(signals_csv)
 
     signals = bt[bt["Signal"] != 0]
@@ -233,7 +280,7 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
             trades.append({
                 "Entry Date": entry_date, "Exit Date": exit_date, "Direction": position,
                 "Entry Price": round(entry_price, 2), "Exit Price": round(exit_price, 2),
-                "Points": round(pnl_points, 2), "P&L (Rs)": round(pnl_points * lot_size, 2),
+                "Points": round(pnl_points, 2), pnl_col: round(pnl_points * lot_size, 2),
             })
             position, entry_price, entry_date = ("LONG" if sig == 1 else "SHORT"), exit_price, exit_date
 
@@ -243,7 +290,7 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
         trades.append({
             "Entry Date": entry_date, "Exit Date": exit_date, "Direction": position,
             "Entry Price": round(entry_price, 2), "Exit Price": round(exit_price, 2),
-            "Points": round(pnl_points, 2), "P&L (Rs)": round(pnl_points * lot_size, 2),
+            "Points": round(pnl_points, 2), pnl_col: round(pnl_points * lot_size, 2),
         })
 
     trades_df = pd.DataFrame(trades)
@@ -251,26 +298,26 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
         print("      No trades generated in this period.")
         return
 
-    trades_df["Cumulative P&L (Rs)"] = trades_df["P&L (Rs)"].cumsum()
-    trades_df["Equity (Rs)"] = capital + trades_df["Cumulative P&L (Rs)"]
-    trades_df["Trade Return %"] = (trades_df["P&L (Rs)"] / capital) * 100
-    trades_csv = os.path.join(outdir, f"{symbol}_backtest_trades.csv")
+    trades_df[cum_col] = trades_df[pnl_col].cumsum()
+    trades_df[equity_col] = capital + trades_df[cum_col]
+    trades_df["Trade Return %"] = (trades_df[pnl_col] / capital) * 100
+    trades_csv = os.path.join(outdir, f"{safe_symbol}_backtest_trades.csv")
     trades_df.to_csv(trades_csv, index=False)
 
     total_trades = len(trades_df)
-    profitable = (trades_df["P&L (Rs)"] > 0).sum()
-    losses = (trades_df["P&L (Rs)"] <= 0).sum()
+    profitable = (trades_df[pnl_col] > 0).sum()
+    losses = (trades_df[pnl_col] <= 0).sum()
     win_rate = profitable / total_trades * 100
-    final_equity = trades_df["Equity (Rs)"].iloc[-1]
+    final_equity = trades_df[equity_col].iloc[-1]
     total_pnl = final_equity - capital
     total_return_pct = (final_equity / capital - 1) * 100
     years = (bt.index.max() - bt.index.min()).days / 365.25
     cagr = ((final_equity / capital) ** (1 / years) - 1) * 100 if years > 0 else np.nan
-    avg_win = trades_df.loc[trades_df["P&L (Rs)"] > 0, "P&L (Rs)"].mean()
-    avg_loss = trades_df.loc[trades_df["P&L (Rs)"] <= 0, "P&L (Rs)"].mean()
-    best_trade = trades_df["P&L (Rs)"].max()
-    worst_trade = trades_df["P&L (Rs)"].min()
-    equity_series = trades_df["Equity (Rs)"]
+    avg_win = trades_df.loc[trades_df[pnl_col] > 0, pnl_col].mean()
+    avg_loss = trades_df.loc[trades_df[pnl_col] <= 0, pnl_col].mean()
+    best_trade = trades_df[pnl_col].max()
+    worst_trade = trades_df[pnl_col].min()
+    equity_series = trades_df[equity_col]
     drawdown = (equity_series - equity_series.cummax()) / equity_series.cummax() * 100
     max_dd = drawdown.min()
 
@@ -281,7 +328,7 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
         "Avg Win": avg_win, "Avg Loss": avg_loss, "Best Trade": best_trade,
         "Worst Trade": worst_trade, "Max Drawdown %": max_dd,
     }
-    stats_path = os.path.join(outdir, f"{symbol}_backtest_stats.txt")
+    stats_path = os.path.join(outdir, f"{safe_symbol}_backtest_stats.txt")
     with open(stats_path, "w") as f:
         for k, v in stats.items():
             f.write(f"{k}: {v:,.2f}\n")
@@ -308,7 +355,7 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
 
     ax2 = fig.add_subplot(gs[1, :])
     equity_plot = pd.concat([pd.Series([capital], index=[bt.index.min()]),
-                              trades_df.set_index("Exit Date")["Equity (Rs)"]])
+                              trades_df.set_index("Exit Date")[equity_col]])
     ax2.plot(equity_plot.index, equity_plot.values, color="darkgreen", linewidth=1.5, marker="o", markersize=3)
     ax2.axhline(capital, color="gray", linestyle="--", linewidth=1, label="Starting Capital")
     ax2.set_title("Equity Curve"); ax2.legend(fontsize=8); ax2.grid(alpha=0.3)
@@ -320,12 +367,12 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
 
     ax4 = fig.add_subplot(gs[3, 0]); ax4.axis("off")
     stats_text = (
-        f"Starting Capital: Rs {capital:,.0f}\nFinal Equity: Rs {final_equity:,.0f}\n"
-        f"Total P&L: Rs {total_pnl:,.0f}\nTotal Return: {total_return_pct:.2f}%\n"
+        f"Starting Capital: {currency}{capital:,.0f}\nFinal Equity: {currency}{final_equity:,.0f}\n"
+        f"Total P&L: {currency}{total_pnl:,.0f}\nTotal Return: {total_return_pct:.2f}%\n"
         f"CAGR: {cagr:.2f}%\nTotal Trades: {total_trades}\n"
         f"Profitable Trades: {profitable}\nLoss Trades: {losses}\nWin Rate: {win_rate:.1f}%\n"
-        f"Avg Win: Rs {avg_win:,.0f}   Avg Loss: Rs {avg_loss:,.0f}\n"
-        f"Best Trade: Rs {best_trade:,.0f}   Worst Trade: Rs {worst_trade:,.0f}\n"
+        f"Avg Win: {currency}{avg_win:,.0f}   Avg Loss: {currency}{avg_loss:,.0f}\n"
+        f"Best Trade: {currency}{best_trade:,.0f}   Worst Trade: {currency}{worst_trade:,.0f}\n"
         f"Max Drawdown: {max_dd:.2f}%"
     )
     ax4.text(0, 1, stats_text, fontsize=10, va="top", family="monospace",
@@ -338,7 +385,7 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
     ax5.set_title("Win/Loss Ratio")
 
     plt.tight_layout()
-    dashboard_path = os.path.join(outdir, f"{symbol}_strategy_dashboard.png")
+    dashboard_path = os.path.join(outdir, f"{safe_symbol}_strategy_dashboard.png")
     plt.savefig(dashboard_path, dpi=150); plt.close()
     print(f"      Saved dashboard -> {dashboard_path}")
 
@@ -348,14 +395,17 @@ def run_backtest(df, symbol, recent_years, capital, lot_size, sma_fast, sma_slow
 # ----------------------------------------------------------------------
 def main():
     args = parse_args()
-    symbol = args.symbol.upper()
-    outdir = args.outdir or f"output_{symbol}_{args.start}_{args.end}"
+    symbol, exchange, currency = resolve_symbol_and_currency(args.symbol, args.exchange)
+    safe_symbol = symbol.replace(".", "_")
+    outdir = args.outdir or f"output_{safe_symbol}_{args.start}_{args.end}"
     os.makedirs(outdir, exist_ok=True)
 
+    print(f"Resolved symbol: {symbol}  |  Exchange: {exchange}  |  Currency: {currency}")
+
     raw = download_data(symbol, args.start, args.end, outdir)
-    enriched = run_descriptive_analysis(raw, symbol, args.recent_years, outdir)
+    enriched = run_descriptive_analysis(raw, symbol, args.recent_years, outdir, currency=currency)
     run_backtest(enriched, symbol, args.recent_years, args.capital, args.lot_size,
-                 args.sma_fast, args.sma_slow, outdir)
+                 args.sma_fast, args.sma_slow, outdir, currency=currency)
 
     print(f"\nAll done. Results saved in: {outdir}/")
 

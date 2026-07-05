@@ -3,16 +3,34 @@ name: stock-analysis
 description: >
   Use this skill when the user asks to download or analyze historical stock
   data, run descriptive statistics/trend/volatility/seasonality analysis on a
-  ticker, or backtest a moving-average crossover trading strategy. Triggers on
-  requests like "analyze AAPL stock", "backtest a SMA crossover strategy for
-  TSLA", "download historical data for MSFT and give me a dashboard", or any
-  request naming a stock ticker plus a date range for analysis/backtesting.
+  ticker, or backtest a moving-average crossover trading strategy. Works for
+  both US-listed stocks (NYSE/NASDAQ, priced in $) and Indian-listed stocks
+  (NSE/BSE, priced in Rs). Triggers on requests like "analyze AAPL stock",
+  "backtest a SMA crossover strategy for RELIANCE on NSE", "download
+  historical data for TCS from BSE", or any request naming a stock ticker
+  plus a date range for analysis/backtesting.
 ---
 
 # Stock Analysis Toolkit
 
 Runs a complete stock analysis + SMA crossover backtest pipeline for any
 ticker and date range using the bundled `stock_analysis_skill.py` script.
+Supports both US exchanges (NYSE/NASDAQ, USD `$`) and Indian exchanges
+(NSE/BSE, INR `Rs`).
+
+## Exchange & currency support
+
+- **US** (default): plain tickers like `MSFT`, `AAPL`, `TSLA` → currency `$`
+- **NSE**: pass `--exchange NSE` with a plain name like `RELIANCE`, `TCS`,
+  `INFY` (the `.NS` yfinance suffix is auto-appended) → currency `Rs`
+- **BSE**: pass `--exchange BSE` with a plain name or code (the `.BO` suffix
+  is auto-appended) → currency `Rs`
+- **Auto-detect**: if the user already supplies a suffixed symbol
+  (`RELIANCE.NS`, `TCS.BO`), `--exchange AUTO` (the default) detects it
+  automatically — no need to pass `--exchange` explicitly in that case.
+
+All currency labels (dataset report, backtest stats, dashboard) render with
+the correct symbol automatically — no separate script needed per market.
 
 ## What it does
 
@@ -42,13 +60,25 @@ file (it lives at `../../scripts/stock_analysis_skill.py` from this skill
 directory) and invoke it with the bash tool. Example:
 
 ```bash
+# US stock (NYSE/NASDAQ), currency $
 python3 ~/copilot-plugins/stock-analysis-toolkit/scripts/stock_analysis_skill.py \
   --symbol MSFT --start 2009 --end 2025
+
+# NSE stock (India), currency Rs
+python3 ~/copilot-plugins/stock-analysis-toolkit/scripts/stock_analysis_skill.py \
+  --symbol RELIANCE --exchange NSE --start 2015 --end 2025
+
+# BSE stock (India), currency Rs
+python3 ~/copilot-plugins/stock-analysis-toolkit/scripts/stock_analysis_skill.py \
+  --symbol TCS --exchange BSE --start 2015 --end 2025
 ```
 
 ### Arguments to collect from the user (ask if not given)
 
-- `--symbol` (required): ticker symbol, e.g. MSFT, AAPL, TSLA
+- `--symbol` (required): ticker symbol, e.g. MSFT, AAPL, TSLA, RELIANCE, TCS
+- `--exchange` (default AUTO): `US`, `NSE`, or `BSE`. Use `NSE`/`BSE` for
+  Indian stocks passed as plain names (auto-adds `.NS`/`.BO`). Leave as
+  `AUTO` if the user already gave a suffixed symbol or wants a US stock.
 - `--start` (required): start year, e.g. 2009
 - `--end` (required): end year (exclusive upper bound), e.g. 2025
 
