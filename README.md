@@ -4,6 +4,30 @@ A personal GitHub Copilot CLI plugin that downloads historical stock data and
 runs a full analysis + SMA-crossover backtest pipeline for any ticker and
 date range.
 
+## Quick Start
+
+**Prerequisites:** [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/use-copilot-cli) and Python 3 with pip.
+
+```bash
+# 1. Install the plugin
+copilot plugin install senthilkumar-eswaren/stock-analysis-toolkit
+
+# 2. Install Python dependencies
+python3 -m pip install yfinance pandas numpy matplotlib seaborn
+```
+
+Then just ask Copilot naturally:
+
+> "Analyze RELIANCE on NSE from 2015 to 2025 and backtest a 21/50 SMA crossover strategy"
+
+> "Analyze AAPL from 2018 to 2025"
+
+**Notes:**
+- Works for US stocks (NYSE/NASDAQ, `$`) and Indian stocks (NSE/BSE, `Rs`) — use `--exchange NSE`/`--exchange BSE` for plain Indian tickers, or pass an already-suffixed symbol like `RELIANCE.NS`.
+- Outputs (CSVs, charts, dashboard PNG) are saved to an `output_<SYMBOL>_<start>_<end>/` folder in your working directory.
+- This is a direct GitHub-repo install (not a marketplace), so Copilot may show a deprecation warning — that's expected and harmless.
+- To update later: `copilot plugin update stock-analysis-toolkit`
+
 ## What's included
 
 - **Skill**: `stock-analysis` — teaches Copilot when/how to invoke the
@@ -59,10 +83,8 @@ python3 scripts/stock_analysis_skill.py --symbol TCS --exchange BSE --start 2015
 python3 -m pip install yfinance pandas numpy matplotlib seaborn
 ```
 
-## Installation (local/personal use)
+## Installation notes
 
-This plugin lives at `~/copilot-plugins/stock-analysis-toolkit` and is
-installed for personal use only (not published to a marketplace). See the
-main Copilot CLI docs for how local plugins are loaded, or symlink/copy this
-directory into `~/.copilot/installed-plugins/` and enable it in
-`~/.copilot/settings.json`.
+Install via `copilot plugin install senthilkumar-eswaren/stock-analysis-toolkit`
+(see Quick Start above). To try local changes before pushing, you can also
+install directly from a local path: `copilot plugin install /path/to/stock-analysis-toolkit`.
