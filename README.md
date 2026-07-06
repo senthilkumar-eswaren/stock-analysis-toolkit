@@ -28,6 +28,12 @@ Then just ask Copilot naturally:
 - This is a direct GitHub-repo install (not a marketplace), so Copilot may show a deprecation warning — that's expected and harmless.
 - To update later: `copilot plugin update stock-analysis-toolkit`
 
+## Example Run
+
+See [`examples/msft/`](examples/msft/README.md) for a full real output
+sample (charts + CSVs + stats) from analyzing MSFT (2009–2025), generated
+directly by the script.
+
 ## What's included
 
 - **Skill**: `stock-analysis` — teaches Copilot when/how to invoke the
