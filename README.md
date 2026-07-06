@@ -28,10 +28,12 @@ Then just ask Copilot naturally:
 - This is a direct GitHub-repo install (not a marketplace), so Copilot may show a deprecation warning — that's expected and harmless.
 - To update later: `copilot plugin update stock-analysis-toolkit`
 
-## Example Run
+## Example Runs
 
-See [`examples/msft/`](examples/msft/README.md) for a full real output
-sample (charts + CSVs + stats) from analyzing MSFT (2009–2025), generated
+- [`examples/msft/`](examples/msft/README.md) — US stock (MSFT, NYSE/NASDAQ, `$`), 2009–2025
+- [`examples/infy/`](examples/infy/README.md) — Indian stock (INFY, NSE, `Rs`), 2015–2025
+
+Both include full generated charts, CSVs, and backtest stats produced
 directly by the script.
 
 ## What's included

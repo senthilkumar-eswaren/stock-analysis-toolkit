@@ -1,0 +1,49 @@
+DATASET OVERVIEW - INFY.NS
+Date Range : 2015-01-05 to 2024-12-31
+Total Rows : 2465 trading days
+Currency   : Rs
+Features   : ['Close', 'High', 'Low', 'Open', 'Volume'] (+ derived Daily Return)
+
+SUMMARY STATISTICS - LAST 8 YEARS
+Price         Open         High          Low        Close        Volume
+count  1975.000000  1975.000000  1975.000000  1975.000000  1.975000e+03
+mean    982.247287   991.869348   972.424666   982.167864  8.166131e+06
+std     459.552713   463.298276   455.490729   459.517478  7.050963e+06
+min     341.299323   344.246929   333.542541   338.739655  3.719660e+05
+25%     558.711254   564.755162   550.814893   557.545563  4.982012e+06
+50%    1077.566800  1084.718472  1065.029499  1079.720825  6.668929e+06
+75%    1369.206242  1379.302605  1357.831744  1368.179321  9.089708e+06
+max    1897.042419  1907.500003  1880.072732  1901.082886  1.644050e+08
+
+VOLATILITY ANALYSIS
+Annualized Volatility (full period): 26.51%
+Annualized Volatility (last 8y): 26.79%
+
+YEARLY PERFORMANCE
+            Return %
+Date                
+2015-12-31     13.48
+2016-12-31     -6.51
+2017-12-31      7.16
+2018-12-31     32.06
+2019-12-31     13.52
+2020-12-31     74.60
+2021-12-31     52.73
+2022-12-31    -18.84
+2023-12-31      3.93
+2024-12-31     25.02
+
+SEASONAL PATTERN (avg daily return % by month, full period)
+Month
+Jan    0.1686
+Feb    0.0038
+Mar    0.0158
+Apr   -0.2200
+May    0.1008
+Jun    0.1473
+Jul    0.3633
+Aug    0.0308
+Sep    0.0184
+Oct   -0.0451
+Nov    0.1220
+Dec    0.1833
