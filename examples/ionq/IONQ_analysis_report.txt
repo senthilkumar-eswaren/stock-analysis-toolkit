@@ -1,0 +1,43 @@
+DATASET OVERVIEW - IONQ
+Date Range : 2021-01-04 to 2024-12-31
+Total Rows : 1005 trading days
+Currency   : $
+Features   : ['Close', 'High', 'Low', 'Open', 'Volume'] (+ derived Daily Return)
+
+SUMMARY STATISTICS - LAST 8 YEARS
+Price         Open         High          Low        Close        Volume
+count  1005.000000  1005.000000  1005.000000  1005.000000  1.005000e+03
+mean     10.818457    11.268673    10.388300    10.822169  6.375471e+06
+std       6.150688     6.638910     5.724886     6.227052  7.599810e+06
+min       3.120000     3.205000     3.040000     3.100000  6.330000e+04
+25%       6.740000     7.000000     6.530000     6.760000  2.225500e+06
+50%      10.030000    10.160000     9.960000    10.010000  4.109200e+06
+75%      12.490000    13.150000    12.170000    12.590000  7.508400e+06
+max      46.869999    48.560001    44.500000    48.240002  7.073340e+07
+
+VOLATILITY ANALYSIS
+Annualized Volatility (full period): 92.74%
+Annualized Volatility (last 8y): 92.74%
+
+YEARLY PERFORMANCE
+            Return %
+Date                
+2021-12-31     54.63
+2022-12-31    -80.25
+2023-12-31    258.09
+2024-12-31    243.50
+
+SEASONAL PATTERN (avg daily return % by month, full period)
+Month
+Jan   -0.2527
+Feb    1.0058
+Mar   -0.1993
+Apr   -0.8220
+May    0.4590
+Jun   -0.0333
+Jul    0.8667
+Aug    0.0505
+Sep    0.0053
+Oct    0.9188
+Nov    2.1226
+Dec   -0.4775

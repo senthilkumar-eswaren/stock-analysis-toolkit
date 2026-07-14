@@ -32,8 +32,9 @@ Then just ask Copilot naturally:
 
 - [`examples/msft/`](examples/msft/README.md) — US stock (MSFT, NYSE/NASDAQ, `$`), 2009–2025
 - [`examples/infy/`](examples/infy/README.md) — Indian stock (INFY, NSE, `Rs`), 2015–2025
+- [`examples/ionq/`](examples/ionq/README.md) — US stock (IONQ, NYSE, `$`), 2015–2025 (data from 2021 IPO)
 
-Both include full generated charts, CSVs, and backtest stats produced
+All three include full generated charts, CSVs, and backtest stats produced
 directly by the script.
 
 ## What's included

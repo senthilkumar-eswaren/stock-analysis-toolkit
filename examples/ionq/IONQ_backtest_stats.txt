@@ -1,0 +1,14 @@
+Starting Capital: 200,000.00
+Final Equity: 201,684.50
+Total P&L: 1,684.50
+Total Return %: 0.84
+CAGR %: 0.21
+Total Trades: 22.00
+Profitable Trades: 9.00
+Loss Trades: 13.00
+Win Rate %: 40.91
+Avg Win: 316.22
+Avg Loss: -89.35
+Best Trade: 1,603.00
+Worst Trade: -420.50
+Max Drawdown %: -0.30
